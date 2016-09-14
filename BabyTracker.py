@@ -80,13 +80,15 @@ def trackBaby():
 	velocityCounter = 0
 	
 	# declare max value for counter above
-	velocityCounterMax = 20
+	velocityCounterMax = 7
 
 	# declare previous frame average midpoint
 	prevAvgMidPoint = None
 	
 	# capture frames from the camera
-	for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):		
+	for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+		#trackSound()
+
 		# grab the raw NumPy array representing the image, then initialize the timestamp
 		# and occupied/unoccupied text
 		image = frame.array
@@ -217,24 +219,20 @@ def sootheBaby(velocity):
 	global isBabyCryingGently
 	global isBabyCryingHysterically
 	
-	if velocity > 25 and velocity <= 100:
+	if velocity > 50 and velocity <= 100:
 		playMusic()
 		if isBabyCryingGently.value:
 			testVibrations()
 		elif isBabyCryingHysterically.value:
-			testVibrations()
+			#testVibrations()
 			testLights()
-			#~ testLights()
-			#~ testLights()
-			#~ testLights()
+			testLights()
+			testLights()
 	elif velocity > 100:
 		playMusic()
 		testVibrations()
 		if isBabyCryingGently.value:
 			testLights()
-			#~ testLights()
-			#~ testLights()
-			#~ testLights()
 	
 	isBabyCryingGently.value = False
 	isBabyCryingHysterically.value = False
@@ -247,15 +245,25 @@ def testLights():
 	GPIO.output(PIN_LIGHTS, GPIO.LOW)
 	time.sleep(0.5)
 
-def playMusic():
-	print("start music")
-	player = subprocess.Popen(["omxplayer", "-o", "local", "--vol", "-500", "shush.wav"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+def playMotherSound():
+	print("start mother sound")
+	player = subprocess.Popen(["omxplayer", "-o", "local", "--vol", "800", "shush.wav"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	time.sleep(8)
 	try:
 		player.stdin.write("q")
 	except IOError:
 		print("music error")
-	
+
+def playMusic():
+	print("start music")
+	player = subprocess.Popen(["omxplayer", "-o", "local", "--vol", "800", "sample.mp3"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	time.sleep(10)
+	try:
+		player.stdin.write("q")
+	except IOError:
+		print("music error")
+
+
 def testVibrations():
 	print("vib low")
 	GPIO.output(PIN_VIBRATION_MOTOR, GPIO.LOW)
@@ -271,7 +279,7 @@ def trackSound():
 	volumeCounter = 0
 	
 	# declare max value for counter above
-	volumeCounterMax = 4
+	volumeCounterMax = 3
 	
 	# grab global references of microphone-related flags
 	# so that 'while' loop below can update them
@@ -279,7 +287,7 @@ def trackSound():
 	global isBabyCryingHysterically
 
 	sample = 0
-	sampleWindow = 150
+	sampleWindow = 250
 	peakToPeakMin = 1898
 	peakToPeakMax = 27699
 	# data observations:
@@ -287,32 +295,37 @@ def trackSound():
 	## max value of adc.read_adc() = 29848
 	## min value of peakToPeak = 1898
 	## max value of peakToPeak = 27699
-	while True:
+
+	stopIt = True
+	while stopIt:
 		startMillis = int(round(time.time() * 1000))
 		peakToPeak = 0
 		signalMax = 0
 		# signalMin = 1024
-		signalMin = 29848	
+		signalMin = 99999	
 
 		while int(round(time.time() * 1000)) - startMillis < sampleWindow:
 			sample = adc.read_adc(0, gain=2)
-			print "sample: " + str(sample)
-			if sample < 30000:
-				if sample > signalMax:
-					signalMax = sample
-				elif sample < signalMin:
-					signalMin = sample
+			#print "sample: " + str(sample)
+			if sample > signalMax:
+				signalMax = sample
+			elif sample < signalMin:
+				signalMin = sample
 
 		peakToPeak = signalMax - signalMin
-		#print "peakToPeak: " + str(peakToPeak)
+		print "peakToPeak: " + str(peakToPeak)
 
-		# change range of numbers from [1898, 27699]
-		# to [0, 100]
-		peakToPeakRange = peakToPeakMax - peakToPeakMin
-		newMax = 100
-		newMin = 0
-		newRange = newMax - newMin
-		newPeakToPeak = (((peakToPeak-peakToPeakMin)*newRange)/peakToPeakRange)+newMin
+		
+		if peakToPeak > 500 and peakToPeak <= 700:
+			if isBabyCryingHysterically.value is False:
+				isBabyCryingGently.value = True
+				print("isBabyCryingGently: " + str(isBabyCryingGently.value));
+		elif peakToPeak > 800:
+			isBabyCryingGently.value = False
+			isBabyCryingHysterically.value = True
+			print("isBabyCryingHysterically: " + str(isBabyCryingHysterically.value));
+
+		#stopIt = False	
 
 		# print "newPeakToPeak: " + str(newPeakToPeak)
 
@@ -325,24 +338,20 @@ def trackSound():
 		# volume = float(volume)
 		# volume = volume - 13000
 		# print "volume: " + str(volume)
-		
 		'''
-		avgVolume += volume
+		avgVolume += peakToPeak
 		volumeCounter = volumeCounter + 1
-		'''
-		'''
 		if volumeCounter == volumeCounterMax:
 			
 			# calculate average volume
 			avgVolume /= volumeCounter
 			print "avg volume: " + str(avgVolume)
-			print "volume: " + str(volume)
 			
-			if avgVolume > 15 and avgVolume <= 30:
+			if avgVolume > 120 and avgVolume <= 150:
 				if isBabyCryingHysterically.value is False:
 					isBabyCryingGently.value = True
 					print("isBabyCryingGently: " + str(isBabyCryingGently.value));
-			elif avgVolume > 30:
+			elif avgVolume > 150:
 				isBabyCryingGently.value = False
 				isBabyCryingHysterically.value = True
 				print("isBabyCryingHysterically: " + str(isBabyCryingHysterically.value));
@@ -365,14 +374,20 @@ signal.signal(signal.SIGINT, signal_handler)
 
 if __name__ == '__main__':
 	setupGPIO()
-	#setupCamera()
+	setupCamera()
 	
 	# start background audio tracking
-	#pool = Pool(processes=1)
-	#audioTracking = pool.apply_async(trackSound, [], callback=None)
-	
-	trackSound()
-	#trackBaby()
+	pool = Pool(processes=1)
+	audioTracking = pool.apply_async(trackSound, [], callback=None)
+
+	trackBaby()
+	#trackSound()
+	#testVibrations()
+	#testVibrations()
+	#testLights()
+	#testLights()
+	#testLights()
+	#playMusic()
 
 	GPIO.cleanup()
 	cv2.destroyAllWindows()
