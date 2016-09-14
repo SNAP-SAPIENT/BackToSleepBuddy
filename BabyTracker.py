@@ -10,16 +10,15 @@ from multiprocessing import Pool
 from multiprocessing import Value
 from ctypes import c_bool
 import subprocess
-import serial
+import Adafruit_ADS1x15
+import signal
+import sys
 
 ######### START OF GLOBAL VARIABLES #########
 
-# initialize Arduino board communication
-arduino = serial.Serial('/dev/ttyACM0', 9600)
-
 # declare GPIO pins
 PIN_LIGHTS = 23
-PIN_VIBRATION_MOTOR = 22
+PIN_VIBRATION_MOTOR = 24
 PIN_MICROPHONE = 26
 
 # declare camera-related objects
@@ -29,6 +28,9 @@ rawCapture = None
 # declare microphone-triggered flags
 isBabyCryingGently = Value(c_bool, False)
 isBabyCryingHysterically = Value(c_bool, False)
+
+# Create an ADS1115 ADC (16-bit) instance.
+adc = Adafruit_ADS1x15.ADS1115()
 
 ######### END OF GLOBAL VARIABLES #########
 
@@ -47,8 +49,8 @@ def setupGPIO():
 	GPIO.setup(PIN_MICROPHONE, GPIO.IN)
 	
 	# keep motor and lights off when initializing
-	GPIO.output(PIN_VIBRATION_MOTOR, GPIO.HIGH)
 	GPIO.output(PIN_LIGHTS, GPIO.LOW)
+	GPIO.output(PIN_VIBRATION_MOTOR, GPIO.HIGH)
 
 # initialize all camera and tracking dependencies
 def setupCamera():
@@ -198,7 +200,7 @@ def trackBaby():
 			prevAvgMidPoint = avgMidPoint
 			
 		
-		cv2.imshow("Frame", image)
+		#cv2.imshow("Frame", image)
 		key = cv2.waitKey(1) & 0xFF
 
 		# clear the stream in preparation for the next frame
@@ -222,17 +224,17 @@ def sootheBaby(velocity):
 		elif isBabyCryingHysterically.value:
 			testVibrations()
 			testLights()
-			testLights()
-			testLights()
-			testLights()
+			#~ testLights()
+			#~ testLights()
+			#~ testLights()
 	elif velocity > 100:
 		playMusic()
 		testVibrations()
 		if isBabyCryingGently.value:
 			testLights()
-			testLights()
-			testLights()
-			testLights()
+			#~ testLights()
+			#~ testLights()
+			#~ testLights()
 	
 	isBabyCryingGently.value = False
 	isBabyCryingHysterically.value = False
@@ -257,10 +259,10 @@ def playMusic():
 def testVibrations():
 	print("vib low")
 	GPIO.output(PIN_VIBRATION_MOTOR, GPIO.LOW)
-	time.sleep(0.5)
+	time.sleep(3)
 	print("vib hi")
 	GPIO.output(PIN_VIBRATION_MOTOR, GPIO.HIGH)
-	time.sleep(0.5)
+	time.sleep(3)
 	
 def trackSound():
 	avgVolume = 0
@@ -269,29 +271,72 @@ def trackSound():
 	volumeCounter = 0
 	
 	# declare max value for counter above
-	volumeCounterMax = 5
+	volumeCounterMax = 4
 	
 	# grab global references of microphone-related flags
 	# so that 'while' loop below can update them
 	global isBabyCryingGently
 	global isBabyCryingHysterically
-	
+
+	sample = 0
+	sampleWindow = 150
+	peakToPeakMin = 1898
+	peakToPeakMax = 27699
+	# data observations:
+	## min value of adc.read_adc() = 12613
+	## max value of adc.read_adc() = 29848
+	## min value of peakToPeak = 1898
+	## max value of peakToPeak = 27699
 	while True:
-		volume = arduino.readline().rstrip()
-		if volume == "" or volume == " ":
-			volume = "0"
+		startMillis = int(round(time.time() * 1000))
+		peakToPeak = 0
+		signalMax = 0
+		# signalMin = 1024
+		signalMin = 29848	
+
+		while int(round(time.time() * 1000)) - startMillis < sampleWindow:
+			sample = adc.read_adc(0, gain=2)
+			print "sample: " + str(sample)
+			if sample < 30000:
+				if sample > signalMax:
+					signalMax = sample
+				elif sample < signalMin:
+					signalMin = sample
+
+		peakToPeak = signalMax - signalMin
+		#print "peakToPeak: " + str(peakToPeak)
+
+		# change range of numbers from [1898, 27699]
+		# to [0, 100]
+		peakToPeakRange = peakToPeakMax - peakToPeakMin
+		newMax = 100
+		newMin = 0
+		newRange = newMax - newMin
+		newPeakToPeak = (((peakToPeak-peakToPeakMin)*newRange)/peakToPeakRange)+newMin
+
+		# print "newPeakToPeak: " + str(newPeakToPeak)
+
+		# volume = adc.read_adc(0, gain=1)
+		# volume = arduino.readline().rstrip()
+		# if volume == "" or volume == " ":
+		#	volume = "0"
 			
 		# convert volume into an integer
-		volume = int(volume)
+		# volume = float(volume)
+		# volume = volume - 13000
 		# print "volume: " + str(volume)
 		
+		'''
 		avgVolume += volume
 		volumeCounter = volumeCounter + 1
-		
+		'''
+		'''
 		if volumeCounter == volumeCounterMax:
+			
 			# calculate average volume
 			avgVolume /= volumeCounter
 			print "avg volume: " + str(avgVolume)
+			print "volume: " + str(volume)
 			
 			if avgVolume > 15 and avgVolume <= 30:
 				if isBabyCryingHysterically.value is False:
@@ -305,14 +350,31 @@ def trackSound():
 			avgVolume = 0
 			volumeCounter = 0
 		
-	
+		time.sleep(0.05)
+		'''
+
+# handle Ctrl + C keypress by closing all resources
+def signal_handler(signal, frame):
+	print 'You pressed Ctrl + C'
+	GPIO.cleanup()
+	cv2.destroyAllWindows()
+	camera.close()
+	sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+
 if __name__ == '__main__':
 	setupGPIO()
-	setupCamera()
+	#setupCamera()
 	
 	# start background audio tracking
-	pool = Pool(processes=1)
-	audioTracking = pool.apply_async(trackSound, [], callback=None)
+	#pool = Pool(processes=1)
+	#audioTracking = pool.apply_async(trackSound, [], callback=None)
 	
-	#trackSound()
-	trackBaby()
+	trackSound()
+	#trackBaby()
+
+	GPIO.cleanup()
+	cv2.destroyAllWindows()
+	camera.close()
+	sys.exit(0)
