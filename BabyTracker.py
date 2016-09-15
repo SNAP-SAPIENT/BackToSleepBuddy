@@ -29,8 +29,11 @@ rawCapture = None
 isBabyCryingGently = Value(c_bool, False)
 isBabyCryingHysterically = Value(c_bool, False)
 
-# Create an ADS1115 ADC (16-bit) instance.
+# create an ADS1115 ADC (16-bit) instance.
 adc = Adafruit_ADS1x15.ADS1115()
+
+# flag that is enabled when user presses Ctrl + C
+hasProgramEnded = False
 
 ######### END OF GLOBAL VARIABLES #########
 
@@ -80,7 +83,7 @@ def trackBaby():
 	velocityCounter = 0
 	
 	# declare max value for counter above
-	velocityCounterMax = 7
+	velocityCounterMax = 4
 
 	# declare previous frame average midpoint
 	prevAvgMidPoint = None
@@ -122,6 +125,7 @@ def trackBaby():
 		for c in cnts:
 			# if the contour is too small, ignore it
 			if cv2.contourArea(c) < 1000:
+			#if cv2.contourArea(c) < 500:
 				continue
 	 
 			# compute the bounding box for the contour, draw it on the frame,
@@ -198,6 +202,7 @@ def trackBaby():
 					# reset values to zero
 					avgVelocity = 0
 					velocityCounter = 0
+					avgFrame = None
 				
 			prevAvgMidPoint = avgMidPoint
 			
@@ -209,7 +214,7 @@ def trackBaby():
 		rawCapture.truncate(0)
 
 		# if the `q` key was pressed, break from the loop
-		if key == ord("q"):
+		if key == ord("q") or hasProgramEnded:
 			GPIO.cleanup()
 			cv2.destroyAllWindows()
 			camera.close()
@@ -219,20 +224,21 @@ def sootheBaby(velocity):
 	global isBabyCryingGently
 	global isBabyCryingHysterically
 	
-	if velocity > 50 and velocity <= 100:
+	if velocity > 10 and velocity <= 50:
 		playMusic()
-		if isBabyCryingGently.value:
-			testVibrations()
-		elif isBabyCryingHysterically.value:
-			#testVibrations()
-			testLights()
-			testLights()
-			testLights()
-	elif velocity > 100:
-		playMusic()
+		if isBabyCryingGently.value or isBabyCryingHysterically:
+			x = 0
+			while x < 12:
+				testLights()
+				x += 1
+	elif velocity > 50:
+		playMotherSound()
 		testVibrations()
-		if isBabyCryingGently.value:
-			testLights()
+		if isBabyCryingGently.value or isBabyCryingHysterically:
+			x = 0
+			while x < 12:
+				testLights()
+				x += 1
 	
 	isBabyCryingGently.value = False
 	isBabyCryingHysterically.value = False
@@ -263,14 +269,12 @@ def playMusic():
 	except IOError:
 		print("music error")
 
-
 def testVibrations():
 	print("vib low")
 	GPIO.output(PIN_VIBRATION_MOTOR, GPIO.LOW)
-	time.sleep(3)
+	time.sleep(5)
 	print("vib hi")
 	GPIO.output(PIN_VIBRATION_MOTOR, GPIO.HIGH)
-	time.sleep(3)
 	
 def trackSound():
 	avgVolume = 0
@@ -287,7 +291,7 @@ def trackSound():
 	global isBabyCryingHysterically
 
 	sample = 0
-	sampleWindow = 250
+	sampleWindow = 150
 	peakToPeakMin = 1898
 	peakToPeakMax = 27699
 	# data observations:
@@ -302,7 +306,7 @@ def trackSound():
 		peakToPeak = 0
 		signalMax = 0
 		# signalMin = 1024
-		signalMin = 99999	
+		signalMin = 99999
 
 		while int(round(time.time() * 1000)) - startMillis < sampleWindow:
 			sample = adc.read_adc(0, gain=2)
@@ -314,13 +318,13 @@ def trackSound():
 
 		peakToPeak = signalMax - signalMin
 		print "peakToPeak: " + str(peakToPeak)
-
+		time.sleep(0.2)
 		
-		if peakToPeak > 500 and peakToPeak <= 700:
-			if isBabyCryingHysterically.value is False:
-				isBabyCryingGently.value = True
-				print("isBabyCryingGently: " + str(isBabyCryingGently.value));
-		elif peakToPeak > 800:
+		if peakToPeak > 650 and peakToPeak <= 1200:
+			isBabyCryingGently.value = True
+			isBabyCryingHysterically.value = False
+			print("isBabyCryingGently: " + str(isBabyCryingGently.value));
+		elif peakToPeak > 1200:
 			isBabyCryingGently.value = False
 			isBabyCryingHysterically.value = True
 			print("isBabyCryingHysterically: " + str(isBabyCryingHysterically.value));
@@ -365,10 +369,12 @@ def trackSound():
 # handle Ctrl + C keypress by closing all resources
 def signal_handler(signal, frame):
 	print 'You pressed Ctrl + C'
-	GPIO.cleanup()
-	cv2.destroyAllWindows()
-	camera.close()
-	sys.exit(0)
+	global hasProgramEnded
+	hasProgramEnded = True
+	#GPIO.cleanup()
+	#cv2.destroyAllWindows()
+	#camera.close()
+	#sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
 
@@ -388,6 +394,7 @@ if __name__ == '__main__':
 	#testLights()
 	#testLights()
 	#playMusic()
+	#playMotherSound()
 
 	GPIO.cleanup()
 	cv2.destroyAllWindows()
