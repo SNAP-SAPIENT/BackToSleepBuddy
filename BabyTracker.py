@@ -1,3 +1,16 @@
+#############################
+# BabyTracker.py
+# Shahzore Qureshi
+# 09/21/2016
+# Sapient SNAP
+#
+# Program below tracks baby
+# movements and sounds and
+# triggers certain actions
+# like lights or vibrations.
+#############################
+
+
 # import the necessary packages
 from picamera.array import PiRGBArray
 from picamera import PiCamera
@@ -38,6 +51,7 @@ hasProgramEnded = False
 ######### END OF GLOBAL VARIABLES #########
 
 # create new class to represent a plot point
+# this is useful when tracking the baby
 class Point:
 	def __init__(self, x, y):
 		self.x = x
@@ -90,17 +104,19 @@ def trackBaby():
 	
 	# capture frames from the camera
 	for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-		#trackSound()
-
-		# grab the raw NumPy array representing the image, then initialize the timestamp
-		# and occupied/unoccupied text
+		# grab the raw NumPy array representing the image
 		image = frame.array
 
+		# add image effects that enhance the clarity of
+		# any moving objects
 		image = imutils.resize(image, width=500)
 		gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
 		gray = cv2.GaussianBlur(gray, (21, 21), 0)
 		
 		# if the average frame is None, initialize it
+		# by copying the current image and ending the
+		# current for loop iteration (so that we can
+		# get the next frame)
 		if avgFrame is None:
 			avgFrame = gray.copy().astype("float")
 			rawCapture.truncate(0)
@@ -120,16 +136,17 @@ def trackBaby():
 		(_, cnts, _) = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
 			cv2.CHAIN_APPROX_SIMPLE)
 	 
-		# loop over the contours
+		# loop over the contours, which are shapes of moving objects.
+		# also, keep track of the midpoints of each contour.
 		midpoints = [];
 		for c in cnts:
 			# if the contour is too small, ignore it
+			# and end the current for loop iteration
 			if cv2.contourArea(c) < 1000:
-			#if cv2.contourArea(c) < 500:
 				continue
 	 
 			# compute the bounding box for the contour, draw it on the frame,
-			# and update the text
+			# and calculate the midpoint of the contour
 			(x, y, w, h) = cv2.boundingRect(c)
 			cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
 			midX = x + w/2;
@@ -149,6 +166,9 @@ def trackBaby():
 				avgMidY += p.y
 			avgMidX /= numOfMidpoints
 			avgMidY /= numOfMidpoints
+
+			# use the class we declared at the beginning
+			# of this program to organize the data better
 			avgMidPoint = Point(avgMidX, avgMidY)
 			
 			# draw midpoint on current frame
@@ -164,93 +184,87 @@ def trackBaby():
 				
 				# add up average velocity
 				avgVelocity += velocity
-				
-				# get microphone sound volume
-				#~ volume = arduino.readline().rstrip()
-				#~ if volume == "" or volume == " ":
-					#~ volume = "0"
-				
-				# convert volume into an integer
-				#~ volume = int(volume)
-				#~ print "volume: " + str(volume)
-				
-				# add up average volume
-				# avgVolume += volume
-				 
-				# find max volume
-				#~ if avgVolume < volume:
-					#~ avgVolume = volume
-				
+			
+				# keep track of the number of velocites
+				# that have been stored so far	
 				velocityCounter = velocityCounter + 1
 				print "velocityCounter: " + str(velocityCounter)
-				
+
+				# once we have the max number of velocites,
+				# calculate the average velocity, trigger
+				# a response for the baby, and reset the
+				# average velocity, counter, and saved
+				# image frame from camera
 				if velocityCounter == velocityCounterMax:
 					
 					# calculate average velocity
 					avgVelocity /= velocityCounter
 					print "avg velocity: " + str(avgVelocity)
 					
-					# calculate average volume
-					# avgVolume /= velocityVolumeCounter
-					#~ print "avg volume: " + str(avgVolume)
-					
-					# use velocity
-					# to determine how to calm the
-					# baby down
+					# use velocity to determine what
+					# action should be taken to soothe
+					# the baby (ex. lights, sound)
 					sootheBaby(avgVelocity)
 					
 					# reset values to zero
 					avgVelocity = 0
 					velocityCounter = 0
 					avgFrame = None
-				
+
+			# keep track of midpoint so that it can
+			# be compared to the next midpoint
 			prevAvgMidPoint = avgMidPoint
 			
-		
-		#cv2.imshow("Frame", image)
-		key = cv2.waitKey(1) & 0xFF
+		# show the camera feed via popup window.
+		# comment the code below to increase
+		# overall performance of the program.
+		#
+		# cv2.imshow("Frame", image)
 
 		# clear the stream in preparation for the next frame
 		rawCapture.truncate(0)
 
-		# if the `q` key was pressed, break from the loop
+		# if camera feed is shown, allow user to
+		# close feed via the "q" key
+		key = cv2.waitKey(1) & 0xFF
+
+		# if the `q` key or the Ctrl + C combo is triggered,
+		# terminate the program
 		if key == ord("q") or hasProgramEnded:
 			GPIO.cleanup()
 			cv2.destroyAllWindows()
 			camera.close()
 			break
 
+# trigger a certain action to soothe the baby 
+# depending on the given velocity
 def sootheBaby(velocity):
-	global isBabyCryingGently
-	global isBabyCryingHysterically
-	
+	# for demo purposes, ignore the velocity
+	# and just trigger actions
+	'''
 	if velocity > 10 and velocity <= 50:
 		playMusic()
-		if isBabyCryingGently.value or isBabyCryingHysterically:
-			x = 0
-			while x < 12:
-				testLights()
-				x += 1
 	elif velocity > 50:
 		playMotherSound()
 		testVibrations()
-		if isBabyCryingGently.value or isBabyCryingHysterically:
-			x = 0
-			while x < 12:
-				testLights()
-				x += 1
-	
-	isBabyCryingGently.value = False
-	isBabyCryingHysterically.value = False
-	
-def testLights():
-	print("lights hi")
-	GPIO.output(PIN_LIGHTS, GPIO.HIGH)
-	time.sleep(0.5) 
-	print("lights low")
-	GPIO.output(PIN_LIGHTS, GPIO.LOW)
-	time.sleep(0.5)
+	'''
+	playMotherSound()
+	testVibrations()
 
+# trigger lights in a certain sequence	
+def testLights():
+	x = 0
+	while x < 12:
+		print("lights hi")
+		GPIO.output(PIN_LIGHTS, GPIO.HIGH)
+		time.sleep(0.5) 
+		print("lights low")
+		GPIO.output(PIN_LIGHTS, GPIO.LOW)
+		time.sleep(0.5)
+		x += 1
+
+# trigger the mother's voice to calm
+# the baby down
 def playMotherSound():
 	print("start mother sound")
 	player = subprocess.Popen(["omxplayer", "-o", "local", "--vol", "800", "shush.wav"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -260,6 +274,7 @@ def playMotherSound():
 	except IOError:
 		print("music error")
 
+# trigger music to calm the baby down
 def playMusic():
 	print("start music")
 	player = subprocess.Popen(["omxplayer", "-o", "local", "--vol", "800", "sample.mp3"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -269,39 +284,38 @@ def playMusic():
 	except IOError:
 		print("music error")
 
+# trigger vibrations in a certain sequence
 def testVibrations():
 	print("vib low")
 	GPIO.output(PIN_VIBRATION_MOTOR, GPIO.LOW)
 	time.sleep(5)
 	print("vib hi")
 	GPIO.output(PIN_VIBRATION_MOTOR, GPIO.HIGH)
-	
+
+# use the microphone to determine if the baby is
+# making noises	
 def trackSound():
-	avgVolume = 0
-	
-	# declare volume counter (measures average sample size)
-	volumeCounter = 0
-	
-	# declare max value for counter above
-	volumeCounterMax = 3
-	
 	# grab global references of microphone-related flags
 	# so that 'while' loop below can update them
 	global isBabyCryingGently
 	global isBabyCryingHysterically
 
+	# sample the audio being recorded
+	# by analyzing the sound peaks
+	# and obtaining the amplitude
+	# of the sound waves
 	sample = 0
 	sampleWindow = 150
 	peakToPeakMin = 1898
 	peakToPeakMax = 27699
+
 	# data observations:
 	## min value of adc.read_adc() = 12613
 	## max value of adc.read_adc() = 29848
 	## min value of peakToPeak = 1898
 	## max value of peakToPeak = 27699
 
-	stopIt = True
-	while stopIt:
+	while True:
 		startMillis = int(round(time.time() * 1000))
 		peakToPeak = 0
 		signalMax = 0
@@ -319,62 +333,29 @@ def trackSound():
 		peakToPeak = signalMax - signalMin
 		print "peakToPeak: " + str(peakToPeak)
 		time.sleep(0.2)
-		
+	
+		# determine if baby is crying.
+		# there are two levels of crying: gently or hysterically.	
 		if peakToPeak > 650 and peakToPeak <= 1200:
 			isBabyCryingGently.value = True
 			isBabyCryingHysterically.value = False
-			print("isBabyCryingGently: " + str(isBabyCryingGently.value));
+			print("isBabyCryingGently: " + str(isBabyCryingGently.value))
+			testLights()
 		elif peakToPeak > 1200:
 			isBabyCryingGently.value = False
 			isBabyCryingHysterically.value = True
-			print("isBabyCryingHysterically: " + str(isBabyCryingHysterically.value));
+			print("isBabyCryingHysterically: " + str(isBabyCryingHysterically.value))
+			testLights()
 
-		#stopIt = False	
 
-		# print "newPeakToPeak: " + str(newPeakToPeak)
 
-		# volume = adc.read_adc(0, gain=1)
-		# volume = arduino.readline().rstrip()
-		# if volume == "" or volume == " ":
-		#	volume = "0"
-			
-		# convert volume into an integer
-		# volume = float(volume)
-		# volume = volume - 13000
-		# print "volume: " + str(volume)
-		'''
-		avgVolume += peakToPeak
-		volumeCounter = volumeCounter + 1
-		if volumeCounter == volumeCounterMax:
-			
-			# calculate average volume
-			avgVolume /= volumeCounter
-			print "avg volume: " + str(avgVolume)
-			
-			if avgVolume > 120 and avgVolume <= 150:
-				if isBabyCryingHysterically.value is False:
-					isBabyCryingGently.value = True
-					print("isBabyCryingGently: " + str(isBabyCryingGently.value));
-			elif avgVolume > 150:
-				isBabyCryingGently.value = False
-				isBabyCryingHysterically.value = True
-				print("isBabyCryingHysterically: " + str(isBabyCryingHysterically.value));
-			
-			avgVolume = 0
-			volumeCounter = 0
-		
-		time.sleep(0.05)
-		'''
-
-# handle Ctrl + C keypress by closing all resources
+# handle Ctrl + C keypress by setting a flag to true.
+# let the trackBaby() loop handle the destruction
+# and deallocation of resources.
 def signal_handler(signal, frame):
 	print 'You pressed Ctrl + C'
 	global hasProgramEnded
 	hasProgramEnded = True
-	#GPIO.cleanup()
-	#cv2.destroyAllWindows()
-	#camera.close()
-	#sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
 
