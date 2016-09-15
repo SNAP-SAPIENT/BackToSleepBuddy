@@ -16,4 +16,4 @@ def hello():
 		return "{ status: \"success\" }"
 if __name__ == "__main__":
 	context = ('ssl/ssl.cert', 'ssl/ssl.key')
-	app.run(debug=True, host='0.0.0.0', ssl_context=context)
+	app.run(debug=True, host='0.0.0.0', port=443, ssl_context=context)

@@ -7,6 +7,15 @@ function restore(button){
     $("#save").removeClass("disabled");
   }
 }
+
+function showLoadingIcon(enable) {
+  if(enable == true) {
+
+  } else {
+
+  }
+}
+
 $(document).ready(function(){
   $(document).on("click", "#record:not(.disabled)", function(){
     elem = $(this);
