@@ -1,4 +1,70 @@
+@font-face {
+  font-family: SapientSansBold;
+  src: url(/static/fonts/SPNTSB.ttf);
+}
+
+@font-face {
+  font-family: SapientCentroSlab;
+  src: url(/static/fonts/SPNTCS.otf);
+}
+
 body {
-  background: red;
-  color: yellow;
+ text-align: center; 
+}
+
+h1, h2, h3 {
+  font-family: SapientSansBold;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+p {
+  font-family: SapientCentroSlab;
+}
+
+.logo {
+  width: 150px;
+}
+
+.buttons {
+  margin: 10px;
+}
+
+.button {
+  display: inline-block;
+  vertical-align: middle;
+  margin: 0px 5px;
+  padding: 10px 16px;
+  cursor: pointer;
+  outline: none;
+  font-size: 13px;
+  text-decoration: none !important;
+  text-align: center;
+  color:#fff;
+  background-color: rgb(224, 40, 40);
+  box-shadow: 0 1px 3px #BFBFBF;
+  border: 0;
+  border-radius: 5px;
+}
+
+.button:hover{
+  box-shadow: inset 0px 1px 1px #8C8C8C;
+}
+
+.button.disabled{
+  box-shadow:none;
+  opacity:0.7;
+}
+
+#download, #base64, #mp3 {
+  display: none;
+}
+
+#live, label[for="live"] {
+  display: none;
+}
+
+canvas{
+  display: block;
+  margin: 0 auto;
 }

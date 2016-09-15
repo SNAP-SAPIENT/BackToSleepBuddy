@@ -1,67 +1,32 @@
 <!DOCTYPE html>
 <html>
  	<head>
+		<title>SNAP - Lambien</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">		
+		<link rel="stylesheet" href="/static/css/main.css" />
 		<script src="/static/js/recorder.js"></script>
 		<script src="/static/js/Fr.voice.js"></script>
 		<script src="/static/js/jquery.js"></script>
 		<script src="/static/js/app.js"></script>
  	</head>
  	<body>
-    <h1>Francium Voice</h1>
-    <p>Created By <a href='http://subinsb.com'>Subin Siby</a> & Open Source community</p>
-    <p>
-		<h2>NOTE</h2>
-		<p>Since Chrome version 47, Voice Recording works only on HTTPS sites. You can see the demo on HTTPS <a href="https://demos.subinsb.com/jquery/voice/">here</a>.</p>
-    </p>
-    <h2>Record</h2>
+		<img class="logo" src="/static/img/snap_logo.png" />
+		<h2>LAMBIEN</h2>
+		<h3>Record your voice below</h3>
+		<canvas id="level" height="180" width="300"></canvas>
 		<audio controls src="" id="audio"></audio>
-		<div style="margin:10px;">
-			<a class="button" id="record">Record</a>
-			<a class="button disabled one" id="pause">Pause</a>
-			<a class="button disabled one" id="stop">Reset</a>
-			<a class="button disabled one" id="play">Play</a>
-			<a class="button disabled one" id="download">Download</a>
-			<a class="button disabled one" id="base64">Base64 URL</a>
-			<a class="button disabled one" id="mp3">MP3 URL</a>
-			<a class="button disabled one" id="save">Upload to Server</a>
+		<div class="buttons">
+			<button class="button" id="record">Record</button>
+			<button class="button disabled one" id="pause">Pause</button>
+			<button class="button disabled one" id="stop">Reset</button>
+			<button class="button disabled one" id="play">Play</button>
+			<button class="button disabled one" id="download">Download</button>
+			<button class="button disabled one" id="base64">Base64 URL</button>
+			<button class="button disabled one" id="mp3">MP3 URL</button>
 		</div>
+		<button class="button disabled one" id="save">Send to Lambien</button>
 		<input class="button" type="checkbox" id="live"/>
 		<label for="live">Live Output</label>
-    <canvas id="level" height="200" width="500"></canvas>
-		<style>
-		.button{
-			display: inline-block;
-			vertical-align: middle;
-			margin: 0px 5px;
-			padding: 5px 12px;
-			cursor: pointer;
-			outline: none;
-			font-size: 13px;
-			text-decoration: none !important;
-			text-align: center;
-			color:#fff;
-			background-color: #4D90FE;
-			background-image: linear-gradient(top,#4D90FE, #4787ED);
-			background-image: -ms-linear-gradient(top,#4D90FE, #4787ED);
-			background-image: -o-linear-gradient(top,#4D90FE, #4787ED);
-			background-image: linear-gradient(top,#4D90FE, #4787ED);
-			border: 1px solid #4787ED;
-			box-shadow: 0 1px 3px #BFBFBF;
-		}
-		a.button{
-			color: #fff;
-		}
-		.button:hover{
-			box-shadow: inset 0px 1px 1px #8C8C8C;
-		}
-		.button.disabled{
-			box-shadow:none;
-			opacity:0.7;
-		}
-    canvas{
-      display: block;
-    }
-		</style>
  	</body>
 </html>
 

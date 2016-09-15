@@ -1,8 +1,11 @@
-function restore(){
+function restore(button){
   $("#record, #live").removeClass("disabled");
-  $("#pause").replaceWith('<a class="button one" id="pause">Pause</a>');
+  $("#pause").replaceWith('<button class="button one" id="pause">Pause</button>');
   $(".one").addClass("disabled");
   Fr.voice.stop();
+  if(button && button == "play") {
+    $("#save").removeClass("disabled");
+  }
 }
 $(document).ready(function(){
   $(document).on("click", "#record:not(.disabled)", function(){
@@ -32,7 +35,7 @@ $(document).ready(function(){
       function draw() {
         drawVisual = requestAnimationFrame(draw);
         analyser.getByteTimeDomainData(dataArray);
-        canvasCtx.fillStyle = 'rgb(200, 200, 200)';
+        canvasCtx.fillStyle = 'rgb(255, 255, 255)';
         canvasCtx.fillRect(0, 0, WIDTH, HEIGHT);
         canvasCtx.lineWidth = 2;
         canvasCtx.strokeStyle = 'rgb(0, 0, 0)';
@@ -62,10 +65,10 @@ $(document).ready(function(){
   $(document).on("click", "#pause:not(.disabled)", function(){
     if($(this).hasClass("resume")){
       Fr.voice.resume();
-      $(this).replaceWith('<a class="button one" id="pause">Pause</a>');
+      $(this).replaceWith('<button class="button one" id="pause">Pause</button>');
     }else{
       Fr.voice.pause();
-      $(this).replaceWith('<a class="button one resume" id="pause">Resume</a>');
+      $(this).replaceWith('<button class="button one resume" id="pause">Resume</button>');
     }
   });
   
@@ -78,7 +81,7 @@ $(document).ready(function(){
       $("#audio").attr("src", url);
       $("#audio")[0].play();
     }, "URL");
-    restore();
+    restore("play");
   });
   
   $(document).on("click", "#download:not(.disabled)", function(){
@@ -110,23 +113,20 @@ $(document).ready(function(){
   });
   
   $(document).on("click", "#save:not(.disabled)", function(){
-    Fr.voice.export(function(blob){
+    Fr.voice.export(function(url){
       var formData = new FormData();
-      formData.append('file', blob);
+      formData.append('file', url);
   
       $.ajax({
-        url: "upload.php",
+        url: "/",
         type: 'POST',
         data: formData,
         contentType: false,
         processData: false,
         success: function(url) {
-          $("#audio").attr("src", url);
-          $("#audio")[0].play();
-          alert("Saved In Server. See audio element's src for URL");
         }
       });
-    }, "blob");
+    }, "base64");
     restore();
   });
 });
