@@ -6,5 +6,8 @@ To compile the BabyTracker, write the following lines in Terminal:
 ```javascript
 source ~/.profile
 workon cv
+cd babyTracker
 python BabyTracker.py
+cd ../httpServer
+python server.py
 ```
